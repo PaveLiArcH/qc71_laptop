@@ -27,7 +27,6 @@ static umode_t qc71_hwmon_fan_is_visible(const void *data, enum hwmon_sensor_typ
 	case hwmon_fan:
 		switch (attr) {
 		case hwmon_fan_input:
-		case hwmon_fan_fault:
 			return 0444;
 		}
 		break;
@@ -149,4 +148,5 @@ void qc71_hwmon_fan_cleanup(void)
 {
 	if (!IS_ERR_OR_NULL(qc71_hwmon_fan_dev))
 		hwmon_device_unregister(qc71_hwmon_fan_dev);
+	qc71_hwmon_fan_dev = NULL;
 }

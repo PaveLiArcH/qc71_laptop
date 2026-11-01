@@ -7,6 +7,7 @@
 # Object files
 *.o
 *.ko
+*.ko.zst
 *.obj
 *.elf
 
@@ -49,6 +50,8 @@
 *.mod*
 *.cmd
 .tmp_versions/
+__pycache__/
+*.pyc
 modules.order
 Module.symvers
 Mkfile.old

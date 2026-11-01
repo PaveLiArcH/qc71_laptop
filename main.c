@@ -32,6 +32,7 @@
 #include "hwmon.h"
 #include "battery.h"
 #include "led_lightbar.h"
+#include "led_keyboard.h"
 #include "debugfs.h"
 
 /* ========================================================================== */
@@ -52,6 +53,7 @@ static struct qc71_submodule {
 	SUBMODULE_ENTRY(hwmon, false),
 	SUBMODULE_ENTRY(battery, false),
 	SUBMODULE_ENTRY(led_lightbar, false),
+	SUBMODULE_ENTRY(led_keyboard, false),
 	SUBMODULE_ENTRY(debugfs, false),
 };
 
@@ -103,6 +105,7 @@ static int __init qc71_laptop_module_init(void)
 	pr_info("supported features:");
 	if (qc71_features.super_key_lock)    pr_cont(" super-key-lock");
 	if (qc71_features.lightbar)          pr_cont(" lightbar");
+	if (qc71_features.keyboard_backlight) pr_cont(" keyboard-backlight");
 	if (qc71_features.fan_boost)         pr_cont(" fan-boost");
 	if (qc71_features.fn_lock)           pr_cont(" fn-lock");
 	if (qc71_features.batt_charge_limit) pr_cont(" charge-limit");

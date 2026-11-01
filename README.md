@@ -1,6 +1,20 @@
 # What is it?
 This a Linux kernel platform driver for Intel Whitebook LAPQC71X systems (XMG Fusion 15, Eluktronics MAG 15, Aftershock Vapor 15, ...).
 
+Development notes, device evidence, and testing instructions are kept in the
+[memory bank](memory-bank/README.md).
+
+This checkout also recognizes the Maibenben P527 / Intel NUC X15 **LAPAC71G**
+with ACADL357 BIOS 0060 or newer for battery charge limits. Keyboard RGB and
+legacy fan PWM support are experimental and require explicit module options;
+see the [hardware test procedure](memory-bank/testing.md). Battery threshold
+changes, AC/DC keyboard RGB/brightness/off, automatic switching between the
+keyboard profiles, both fan speeds at 100% and 90%, and returning fan control
+to BIOS have been physically confirmed on this device. Short s2idle cycles on
+AC preserved the settings in BIOS mode and released direct fan PWM without
+replaying it after resume. Deep sleep and long manual sessions still need
+validation. The original QC71 BIOS threshold remains 0114.
+
 
 # Disclaimer
 **This software is in early stages of developement. Futhermore, to quote GPL: everything is provided as is. There is no warranty for the program, to the extent permitted by applicable law.**
@@ -9,8 +23,11 @@ This a Linux kernel platform driver for Intel Whitebook LAPQC71X systems (XMG Fu
 
 
 # Compatibility
-It has only been tested on an XMG Fusion 15 device (BIOS 0062 up to 0120) and with the `5.4`, and `5.8`-`5.13` kernel series.
+The upstream driver was tested on an XMG Fusion 15 device (BIOS 0062 up to 0120) and with the `5.4`, and `5.8`-`5.13` kernel series.
 Some functions have been confirmed to work on the Tongfang GK7C chassis (XMG Neo 17, PCS Recoil III, Walmart OP17) (see [#6][issue6]).
+This checkout has also been tested on the Maibenben P527 / LAPAC71G with
+ACADL357 BIOS 0060 and Linux 7.2.9-arch1-1; the confirmed functions and remaining
+checks are listed above and in the memory bank.
 
 
 # Dependencies
@@ -32,13 +49,19 @@ Some functions have been confirmed to work on the Tongfang GK7C chassis (XMG Neo
 
 
 # How to install
+For the current Maibenben P527 Arch installation, use the
+[local package and rollback procedure](memory-bank/install.md). Its hardware
+checks have passed; the prepared package replaces the existing DKMS package.
+The generic `make dkmsinstall` target below uses version 0.0 and would leave
+a second source alongside the installed Arch version.
+
 ## Downloading
 If you have `git` installed:
 ```
-git clone https://github.com/pobrn/qc71_laptop
+git clone https://github.com/PaveLiArcH/qc71_laptop.git
 ```
 
-If you don't, then you can download it [here](https://github.com/pobrn/qc71_laptop/archive/master.zip).
+If you don't, then you can download it [here](https://github.com/PaveLiArcH/qc71_laptop/archive/refs/heads/master.zip).
 
 ## Installing
 ### Linux headers
@@ -90,6 +113,33 @@ sudo make dkmsinstall
 
 
 # How to use
+## LAPAC71G keyboard backlight
+
+Load this checkout with `keyboard_backlight=1`; the LED also needs
+`CONFIG_LEDS_CLASS_MULTICOLOR` and `CONFIG_POWER_SUPPLY`. The interface is
+`/sys/class/leds/qc71_laptop:rgb:kbd_backlight`.
+
+For example, set red at the maximum configured brightness:
+
+```sh
+echo '255 0 0' | sudo tee /sys/class/leds/qc71_laptop:rgb:kbd_backlight/multi_intensity
+echo 255 | sudo tee /sys/class/leds/qc71_laptop:rgb:kbd_backlight/brightness
+```
+
+RGB order is given by `multi_index`. White is `255 255 255`, green is
+`0 255 0`, and blue is `0 0 255`. Brightness 0 turns the light off;
+64/128/191/255 select its four levels. The values read back describe the
+configured AC or DC profile. Native Fn+F7 and the idle timer can change the
+physical light independently; wake the built-in keyboard with an ordinary key
+when checking the result. AC and DC have separate colors and levels. Wait for
+the profile cache to refresh after plugging or unplugging the adapter, then
+retry a request if necessary. Changes can be applied asynchronously by the
+LED core, so check readback and the visible result.
+
+This interface does not require `manual_control=1`. For bounded tests with
+restoration and physical-observation prompts, see the
+[hardware procedure](memory-bank/testing.md).
+
 ## Fan speeds
 After loading the module the fan speeds and temperatures should immediately appear in the output of `sensors`, and all your favourite monitoring utilities (e.g. the [Freon][gnome-ext-freon] GNOME shell extension) that use `sensors`.
 
@@ -143,6 +193,28 @@ will change the current color.
 
 ## Controlling the fans
 These can be controlled directly from the BIOS as well.
+
+### Direct PWM on LAPAC71G
+
+`fan_control=1` explicitly enables experimental PWM support on this board.
+Locate the hwmon directory whose `name` is `qc71_laptop.hwmon.pwm` under
+`/sys/devices/platform/qc71_laptop/hwmon/`; its numeric index can change.
+
+First set `/sys/devices/platform/qc71_laptop/manual_control` to 1. In that hwmon
+directory, `pwm1_enable=0` runs both fans at full speed; `pwm1_enable=1`
+allows separate `pwm1` and `pwm2` values from 0 to 255. Both channels share
+`pwm1_enable`; there is no `pwm2_enable`. The device test confirmed both fans
+at full speed and about 90%, not the complete speed range.
+
+Set `/sys/devices/platform/qc71_laptop/manual_control` back to 0 to release
+direct control and return the global mode to BIOS. Setting only
+`pwm1_enable=2` releases direct PWM while keeping the global application mode.
+Suspend and unload release direct PWM owned by this driver; resume does not
+replay it automatically. Long manual sessions have not been validated.
+
+The bounded `tools/hardware_test.py fans` command tests the two confirmed
+speeds and returns control to BIOS; `tools/hardware_test.py bios` explicitly
+requests BIOS control without a speed test.
 
 ### Passive cooling
 I call this feature "always on" because that's less confusing than "passive cooling".

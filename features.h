@@ -8,6 +8,7 @@
 struct qc71_features_struct {
 	bool super_key_lock    : 1;
 	bool lightbar          : 1;
+	bool keyboard_backlight : 1; /* LAPAC71G with EC single-zone RGB capability */
 	bool fan_boost         : 1;
 	bool fn_lock           : 1;
 	bool batt_charge_limit : 1;

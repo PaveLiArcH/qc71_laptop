@@ -101,26 +101,12 @@ static inline int qc71_lightbar_get_status(void)
 	return ec_read_byte(LIGHTBAR_CTRL_ADDR);
 }
 
-static inline int qc71_lightbar_write_ctrl(uint8_t ctrl)
-{
-	return ec_write_byte(LIGHTBAR_CTRL_ADDR, ctrl);
-}
-
-/* ========================================================================== */
-
 static int qc71_lightbar_switch(uint8_t mask, bool on)
 {
-	int status;
-
 	if (mask != LIGHTBAR_CTRL_S0_OFF && mask != LIGHTBAR_CTRL_S3_OFF)
 		return -EINVAL;
 
-	status = qc71_lightbar_get_status();
-
-	if (status < 0)
-		return status;
-
-	return qc71_lightbar_write_ctrl(SET_BIT(status, mask, !on));
+	return ec_update_bits(LIGHTBAR_CTRL_ADDR, mask, on ? 0 : mask);
 }
 
 static int qc71_lightbar_set_color_level(uint8_t color, uint8_t level)
@@ -150,12 +136,8 @@ static int qc71_lightbar_get_color_level(uint8_t color)
 
 static int qc71_lightbar_set_rainbow_mode(bool on)
 {
-	int status = qc71_lightbar_get_status();
-
-	if (status < 0)
-		return status;
-
-	return qc71_lightbar_write_ctrl(SET_BIT(status, LIGHTBAR_CTRL_RAINBOW, on));
+	return ec_update_bits(LIGHTBAR_CTRL_ADDR, LIGHTBAR_CTRL_RAINBOW,
+			      on ? LIGHTBAR_CTRL_RAINBOW : 0);
 }
 
 static int qc71_lightbar_set_color(unsigned int color)
@@ -272,7 +254,7 @@ static enum led_brightness qc71_lightbar_led_get_brightness(struct led_classdev 
 {
 	int err = qc71_lightbar_get_status();
 
-	if (err)
+	if (err < 0)
 		return 0;
 
 	return !(err & LIGHTBAR_CTRL_S0_OFF);

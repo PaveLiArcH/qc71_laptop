@@ -1,0 +1,20 @@
+# Local source snapshot; build-local.py fills the checksum in its staged copy.
+pkgname=qc71-laptop-dkms-git
+pkgver=r81.ebab4af.p527.20261101
+pkgrel=1
+pkgdesc='QC71 platform driver with locally tested LAPAC71G support'
+arch=('x86_64')
+url='https://github.com/PaveLiArcH/qc71_laptop'
+license=('GPL-2.0-only')
+depends=('dkms')
+optdepends=('linux-headers: build the module for the linux kernel')
+conflicts=('qc71_laptop')
+options=('!strip' '!debug' '!lto')
+_source_dir="qc71_laptop-${pkgver}"
+source=("${_source_dir}.tar.gz")
+sha256sums=('@SOURCE_SHA256@')
+
+package() {
+    install -dm755 "${pkgdir}/usr/src/${_source_dir}"
+    cp -a "${srcdir}/${_source_dir}/." "${pkgdir}/usr/src/${_source_dir}/"
+}

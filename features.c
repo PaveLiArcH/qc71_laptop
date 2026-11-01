@@ -35,6 +35,12 @@ static const struct dmi_system_id qc71_dmi_table[] __initconst = {
 			{ }
 		}
 	},
+	{
+		.matches = {
+			DMI_EXACT_MATCH(DMI_BOARD_NAME, "LAPAC71G"),
+			{ }
+		}
+	},
 	{ }
 };
 
@@ -100,6 +106,9 @@ static int __pure __init parse_bios_version(const char *str)
 		return -EINVAL;
 
 	p += 1;
+	/* Intel BIOS revisions have four digits. Reject empty/overflowing fields. */
+	if (p == p2 || p2 - p > 4)
+		return -EINVAL;
 
 	bios_version = 0;
 
@@ -117,6 +126,7 @@ static int __pure __init parse_bios_version(const char *str)
 static int __init check_features_ec(void)
 {
 	int err = ec_read_byte(SUPPORT_1_ADDR);
+	int support_2;
 
 	if (err >= 0) {
 		qc71_features.super_key_lock = !!(err & SUPPORT_1_SUPER_KEY_LOCK);
@@ -126,6 +136,17 @@ static int __init check_features_ec(void)
 		pr_warn("failed to query support_1 byte: %d\n", err);
 	}
 
+	support_2 = ec_read_byte(SUPPORT_2_ADDR);
+	if (support_2 >= 0) {
+		pr_info("support_2: %#04x\n", support_2);
+		/* The RGB register layout is currently supported on the X15 only. */
+		qc71_features.keyboard_backlight =
+			dmi_match(DMI_BOARD_NAME, "LAPAC71G") &&
+			(support_2 & SUPPORT_2_SINGLE_ZONE_KBD);
+	} else {
+		pr_warn("failed to query support_2 byte: %d\n", support_2);
+	}
+
 	return err;
 }
 
@@ -133,6 +154,7 @@ static int __init check_features_bios(void)
 {
 	const char *bios_version_str;
 	int bios_version;
+	bool x15 = dmi_match(DMI_BOARD_NAME, "LAPAC71G");
 
 	if (!dmi_check_system(qc71_dmi_table)) {
 		pr_warn("no DMI match\n");
@@ -148,6 +170,12 @@ static int __init check_features_bios(void)
 
 	pr_info("BIOS version string: '%s'\n", bios_version_str);
 
+	/* ACADL and QCCFL firmware revisions are independent version series. */
+	if (x15 && !str_has_prefix(bios_version_str, "ACADL357.")) {
+		pr_warn("unrecognized X15 BIOS family; skipping BIOS-specific controls\n");
+		return -EOPNOTSUPP;
+	}
+
 	bios_version = parse_bios_version(bios_version_str);
 
 	if (bios_version < 0) {
@@ -157,25 +185,27 @@ static int __init check_features_bios(void)
 
 	pr_info("BIOS version: %04d\n", bios_version);
 
-	if (bios_version >= 114) {
+	if (bios_version >= (x15 ? 60 : 114)) {
 		const char *s = read_oem_string(18);
 		size_t s_len;
 
-		if (IS_ERR(s))
+		if (IS_ERR(s)) {
+			pr_warn("cannot read OEM feature string: %ld\n", PTR_ERR(s));
 			return PTR_ERR(s);
+		}
 
 		s_len = strlen(s);
 
 		pr_info("OEM_STRING(18) = '%s'\n", s);
 
 		/* if it is entirely spaces */
-		if (strspn(s, " ") == s_len) {
+		if (s_len && strspn(s, " ") == s_len) {
 			qc71_features.fn_lock           = true;
 			qc71_features.batt_charge_limit = true;
 			qc71_features.fan_extras        = true;
-		} else if (s_len > 0) {
+		} else {
 			/* TODO */
-			pr_warn("cannot extract supported features");
+			pr_warn("cannot extract supported features from OEM string\n");
 		}
 
 		kfree(s);

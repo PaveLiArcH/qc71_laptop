@@ -35,6 +35,8 @@ static ssize_t charge_control_end_threshold_show(struct device *dev,
 		return status;
 
 	status &= BATT_CHARGE_CTRL_VALUE_MASK;
+	if (status > 100)
+		return -ENODATA;
 
 	if (status == 0)
 		status = 100;
@@ -50,16 +52,12 @@ static ssize_t charge_control_end_threshold_store(struct device *dev, struct dev
 	if (kstrtoint(buf, 10, &value) || !(1 <= value && value <= 100))
 		return -EINVAL;
 
-	status = ec_read_byte(BATT_CHARGE_CTRL_ADDR);
-	if (status < 0)
-		return status;
-
 	if (value == 100)
 		value = 0;
 
-	status = (status & ~BATT_CHARGE_CTRL_VALUE_MASK) | value;
-
-	status = ec_write_byte(BATT_CHARGE_CTRL_ADDR, status);
+	/* Preserve the status bit without racing another EC register update. */
+	status = ec_update_bits(BATT_CHARGE_CTRL_ADDR,
+			       BATT_CHARGE_CTRL_VALUE_MASK, value);
 
 	if (status < 0)
 		return status;

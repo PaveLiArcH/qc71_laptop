@@ -46,12 +46,27 @@ static const uint16_t qc71_fan_temp_addrs[] = {
 /* ========================================================================== */
 
 static DEFINE_MUTEX(fan_lock);
+/* Only release direct control automatically if this driver requested it. */
+static bool fan_control_owned;
+static bool fan_full_speed;
+static bool fan_suspended;
 
 /* ========================================================================== */
 
-static int qc71_fan_get_status(void)
+static int qc71_fan_set_auto_unlocked(void)
 {
-	return ec_read_byte(FAN_CTRL_ADDR);
+	int err;
+
+	lockdep_assert_held(&fan_lock);
+
+	/* Preserve the selected firmware profile and its other control bits. */
+	err = ec_update_bits(FAN_CTRL_ADDR, FAN_CTRL_FAN_BOOST, 0);
+	if (!err) {
+		fan_control_owned = false;
+		fan_full_speed = false;
+	}
+
+	return err;
 }
 
 /* 'fan_lock' must be held */
@@ -65,32 +80,17 @@ static int qc71_fan_get_mode_unlocked(void)
 	if (err < 0)
 		return err;
 
-	if (err & CTRL_1_MANUAL_MODE) {
-		err = qc71_fan_get_status();
-		if (err < 0)
-			return err;
+	if (!(err & CTRL_1_MANUAL_MODE))
+		return 2; /* firmware fan control */
 
-		if (err & FAN_CTRL_FAN_BOOST) {
-			err = qc71_fan_get_pwm(0);
+	err = ec_read_byte(FAN_CTRL_ADDR);
+	if (err < 0)
+		return err;
+	if (!(err & FAN_CTRL_FAN_BOOST))
+		return 2; /* firmware fan curve, including an app-selected profile */
 
-			if (err < 0)
-				return err;
-
-			if (err == FAN_MAX_PWM)
-				err = 0; /* disengaged */
-			else
-				err = 1; /* manual */
-
-		} else if (err & FAN_CTRL_AUTO) {
-			err = 2; /* automatic fan control */
-		} else {
-			err = 1; /* manual */
-		}
-	} else {
-		err = 2; /* automatic fan control */
-	}
-
-	return err;
+	/* A manually selected 100% PWM remains manual mode. */
+	return fan_full_speed ? 0 : 1;
 }
 
 /* ========================================================================== */
@@ -132,18 +132,48 @@ int qc71_fan_get_pwm(uint8_t fan_index)
 	if (err < 0)
 		return err;
 
-	return fixp_linear_interpolate(0, 0, FAN_MAX_PWM, U8_MAX, err);
+	return fixp_linear_interpolate(0, 0, FAN_MAX_PWM, U8_MAX,
+				       min(err, FAN_MAX_PWM));
 }
 
-int qc71_fan_set_pwm(uint8_t fan_index, uint8_t pwm)
+int qc71_fan_set_pwm(uint8_t fan_index, unsigned int pwm)
 {
-	if (fan_index >= ARRAY_SIZE(qc71_fan_pwm_addrs))
+	int err, restore_err;
+
+	if (fan_index >= ARRAY_SIZE(qc71_fan_pwm_addrs) || pwm > U8_MAX)
 		return -EINVAL;
 
-	return ec_write_byte(qc71_fan_pwm_addrs[fan_index],
-			     fixp_linear_interpolate(0, 0,
-						     U8_MAX, FAN_MAX_PWM,
-						     pwm));
+	err = mutex_lock_interruptible(&fan_lock);
+	if (err)
+		return err;
+
+	if (fan_suspended) {
+		err = -EBUSY;
+		goto out;
+	}
+
+	err = qc71_fan_get_mode_unlocked();
+	if (err < 0)
+		goto out;
+	if (err != 1) {
+		err = -EBUSY;
+		goto out;
+	}
+
+	/* An I/O error may be reported after firmware has performed the write. */
+	fan_control_owned = true;
+	err = ec_write_byte(qc71_fan_pwm_addrs[fan_index],
+			    fixp_linear_interpolate(0, 0, U8_MAX,
+						    FAN_MAX_PWM, pwm));
+	if (err) {
+		restore_err = qc71_fan_set_auto_unlocked();
+		if (restore_err)
+			pr_err("failed to restore firmware fan control: %d\n",
+			       restore_err);
+	}
+out:
+	mutex_unlock(&fan_lock);
+	return err;
 }
 
 int qc71_fan_get_temp(uint8_t fan_index)
@@ -167,46 +197,122 @@ int qc71_fan_get_mode(void)
 	return err;
 }
 
-int qc71_fan_set_mode(uint8_t mode)
+int qc71_fan_set_mode(unsigned int mode)
 {
-	int err, oldpwm;
+	int err, restore_err, oldpwm[ARRAY_SIZE(qc71_fan_pwm_addrs)];
+	size_t i;
+
+	if (mode > 2)
+		return -EINVAL;
 
 	err = mutex_lock_interruptible(&fan_lock);
 	if (err)
 		return err;
 
-	switch (mode) {
-	case 0:
-		err = ec_write_byte(FAN_CTRL_ADDR, FAN_CTRL_FAN_BOOST);
-		if (err)
-			goto out;
-
-		err = qc71_fan_set_pwm(0, FAN_MAX_PWM);
-		break;
-	case 1:
-		oldpwm = err = qc71_fan_get_pwm(0);
-		if (err < 0)
-			goto out;
-
-		err = ec_write_byte(FAN_CTRL_ADDR, FAN_CTRL_FAN_BOOST);
-		if (err < 0)
-			goto out;
-
-		err = qc71_fan_set_pwm(0, oldpwm);
-		if (err < 0)
-			(void) ec_write_byte(FAN_CTRL_ADDR, 0x80 | FAN_CTRL_AUTO);
-			/* try to restore automatic fan control */
-
-		break;
-	case 2:
-		err = ec_write_byte(FAN_CTRL_ADDR, 0x80 | FAN_CTRL_AUTO);
-		break;
-	default:
-		err = -EINVAL;
-		break;
+	if (mode == 2) {
+		err = qc71_fan_set_auto_unlocked();
+		goto out;
 	}
+	if (fan_suspended) {
+		err = -EBUSY;
+		goto out;
+	}
+
+	/* AppIsRunning also affects power profiles; do not enable it implicitly. */
+	err = ec_read_byte(CTRL_1_ADDR);
+	if (err < 0)
+		goto out;
+	if (!(err & CTRL_1_MANUAL_MODE)) {
+		err = -EBUSY;
+		goto out;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(qc71_fan_pwm_addrs); i++) {
+		if (mode == 0) {
+			oldpwm[i] = FAN_MAX_PWM;
+			continue;
+		}
+		/* Preserve raw values: PWM -> sysfs -> PWM loses precision. */
+		err = ec_read_byte(qc71_fan_pwm_addrs[i]);
+		if (err < 0)
+			goto out;
+		oldpwm[i] = min(err, FAN_MAX_PWM);
+	}
+
+	/* Keep ownership until rollback succeeds, even for an ambiguous error. */
+	fan_control_owned = true;
+	err = ec_update_bits(FAN_CTRL_ADDR, FAN_CTRL_FAN_BOOST,
+			     FAN_CTRL_FAN_BOOST);
+	if (err)
+		goto restore_auto;
+
+	for (i = 0; i < ARRAY_SIZE(qc71_fan_pwm_addrs); i++) {
+		err = ec_write_byte(qc71_fan_pwm_addrs[i], oldpwm[i]);
+		if (err)
+			goto restore_auto;
+	}
+	fan_full_speed = mode == 0;
+	goto out;
+
+restore_auto:
+	restore_err = qc71_fan_set_auto_unlocked();
+	if (restore_err)
+		pr_err("failed to restore firmware fan control: %d\n", restore_err);
 
 out:
 	mutex_unlock(&fan_lock);
 	return err;
+}
+
+int qc71_fan_release_control(void)
+{
+	int err = mutex_lock_interruptible(&fan_lock);
+
+	if (err)
+		return err;
+
+	/* This explicit request restores the global firmware mode as well. */
+	err = qc71_fan_set_auto_unlocked();
+	if (!err)
+		err = ec_update_bits(CTRL_1_ADDR, CTRL_1_MANUAL_MODE, 0);
+
+	mutex_unlock(&fan_lock);
+	return err;
+}
+
+int qc71_fan_suspend(void)
+{
+	int err = 0;
+
+	mutex_lock(&fan_lock);
+	/* Block new direct-control requests until the PM post notification. */
+	fan_suspended = true;
+	if (fan_control_owned)
+		err = qc71_fan_set_auto_unlocked();
+	if (err) {
+		fan_suspended = false;
+		pr_err("failed to restore firmware fan control before sleep: %d\n", err);
+	}
+	mutex_unlock(&fan_lock);
+	return err;
+}
+
+void qc71_fan_resume(void)
+{
+	mutex_lock(&fan_lock);
+	fan_suspended = false;
+	mutex_unlock(&fan_lock);
+}
+
+void qc71_fan_cleanup(void)
+{
+	int err;
+
+	mutex_lock(&fan_lock);
+	if (fan_control_owned) {
+		err = qc71_fan_set_auto_unlocked();
+		if (err)
+			pr_err("failed to restore firmware fan control: %d\n", err);
+	}
+	mutex_unlock(&fan_lock);
 }

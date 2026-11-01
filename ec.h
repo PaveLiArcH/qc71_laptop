@@ -239,6 +239,9 @@ union qc71_ec_result {
 int __must_check qc71_ec_transaction(uint16_t addr, uint16_t data,
 				     union qc71_ec_result *result, bool read);
 
+/* Atomic relative to other accesses through this driver. */
+int __must_check ec_update_bits(uint16_t addr, uint8_t mask, uint8_t value);
+
 static inline __must_check int qc71_ec_read(uint16_t addr, union qc71_ec_result *result)
 {
 	return qc71_ec_transaction(addr, 0, result, true);

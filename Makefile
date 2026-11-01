@@ -14,7 +14,7 @@ $(MODNAME)-y += ec.o \
 
 $(MODNAME)-$(CONFIG_DEBUG_FS)     += debugfs.o
 $(MODNAME)-$(CONFIG_ACPI_BATTERY) += battery.o
-$(MODNAME)-$(CONFIG_LEDS_CLASS)   += led_lightbar.o
+$(MODNAME)-$(CONFIG_LEDS_CLASS)   += led_lightbar.o led_keyboard.o
 $(MODNAME)-$(CONFIG_HWMON)        += hwmon.o hwmon_fan.o hwmon_pwm.o fan.o
 
 KVER = $(shell uname -r)

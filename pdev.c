@@ -10,6 +10,7 @@
 #include "util.h"
 #include "ec.h"
 #include "features.h"
+#include "fan.h"
 #include "misc.h"
 #include "pdev.h"
 
@@ -39,13 +40,8 @@ static ssize_t fan_reduced_duty_cycle_store(struct device *dev, struct device_at
 	if (kstrtobool(buf, &value))
 		return -EINVAL;
 
-	status = ec_read_byte(BIOS_CTRL_3_ADDR);
-	if (status < 0)
-		return status;
-
-	status = SET_BIT(status, BIOS_CTRL_3_FAN_REDUCED_DUTY_CYCLE, value);
-
-	status = ec_write_byte(BIOS_CTRL_3_ADDR, status);
+	status = ec_update_bits(BIOS_CTRL_3_ADDR, BIOS_CTRL_3_FAN_REDUCED_DUTY_CYCLE,
+				value ? BIOS_CTRL_3_FAN_REDUCED_DUTY_CYCLE : 0);
 
 	if (status < 0)
 		return status;
@@ -73,13 +69,8 @@ static ssize_t fan_always_on_store(struct device *dev, struct device_attribute *
 	if (kstrtobool(buf, &value))
 		return -EINVAL;
 
-	status = ec_read_byte(BIOS_CTRL_3_ADDR);
-	if (status < 0)
-		return status;
-
-	status = SET_BIT(status, BIOS_CTRL_3_FAN_ALWAYS_ON, value);
-
-	status = ec_write_byte(BIOS_CTRL_3_ADDR, status);
+	status = ec_update_bits(BIOS_CTRL_3_ADDR, BIOS_CTRL_3_FAN_ALWAYS_ON,
+				value ? BIOS_CTRL_3_FAN_ALWAYS_ON : 0);
 
 	if (status < 0)
 		return status;
@@ -134,13 +125,8 @@ static ssize_t fn_lock_switch_store(struct device *dev, struct device_attribute 
 	if (kstrtobool(buf, &value))
 		return -EINVAL;
 
-	status = ec_read_byte(AP_BIOS_BYTE_ADDR);
-	if (status < 0)
-		return status;
-
-	status = SET_BIT(status, AP_BIOS_BYTE_FN_LOCK_SWITCH, value);
-
-	status = ec_write_byte(AP_BIOS_BYTE_ADDR, status);
+	status = ec_update_bits(AP_BIOS_BYTE_ADDR, AP_BIOS_BYTE_FN_LOCK_SWITCH,
+				value ? AP_BIOS_BYTE_FN_LOCK_SWITCH : 0);
 
 	if (status < 0)
 		return status;
@@ -168,13 +154,11 @@ static ssize_t manual_control_store(struct device *dev, struct device_attribute 
 	if (kstrtobool(buf, &value))
 		return -EINVAL;
 
-	status = ec_read_byte(CTRL_1_ADDR);
-	if (status < 0)
-		return status;
-
-	status = SET_BIT(status, CTRL_1_MANUAL_MODE, value);
-
-	status = ec_write_byte(CTRL_1_ADDR, status);
+	if (value)
+		status = ec_update_bits(CTRL_1_ADDR, CTRL_1_MANUAL_MODE,
+					CTRL_1_MANUAL_MODE);
+	else
+		status = qc71_fan_release_control();
 
 	if (status < 0)
 		return status;
