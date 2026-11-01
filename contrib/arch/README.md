@@ -30,6 +30,12 @@ the interfaces leaves fan control with the BIOS. See the main README and
 Physical validation of this fork has been performed on LAPAC71G; LAPAC71H
 shares its register protocol and software tests.
 
+For a GNOME 51 color picker, the optional dependency
+`lapac71g-lapac71h-keyboard-gnome-git` installs the
+[LAPAC71G/LAPAC71H Keyboard Color extension](../gnome/README.md) and its D-Bus
+bridge. The extension requires this driver package; the driver does not
+require GNOME. Keep `keyboard_backlight=1` enabled to expose the RGB LED.
+
 For publication, the AUR Git repository needs only `PKGBUILD`, `dkms.conf` and
 `.SRCINFO` from `aur/`. Regenerate metadata after changing the recipe:
 

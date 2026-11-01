@@ -14,9 +14,11 @@ and `keyboard_backlight=1`. This UI requires no kernel changes or module reload.
 
 The AUR package is
 [`lapac71g-lapac71h-keyboard-gnome-git`](https://aur.archlinux.org/packages/lapac71g-lapac71h-keyboard-gnome-git).
-It builds the extension and D-Bus bridge from this repository. Install the
-LAPAC71G/H-capable `qc71-laptop-lapac71-dkms-git` driver separately and enable
-its `keyboard_backlight=1` module option. The UI does not install module options.
+It builds the extension and D-Bus bridge from this repository and requires the
+LAPAC71G/H-capable `qc71-laptop-lapac71-dkms-git` driver package. Enable its
+`keyboard_backlight=1` module option; the UI does not install module options.
+The driver lists this UI as an optional dependency, so using the driver does
+not require installing GNOME.
 
 Build the AUR recipe as a normal user:
 
@@ -33,7 +35,7 @@ python3 build-package.py
 ```
 
 The command prints the exact package path in `/tmp/qc71-keyboard-build-…/`.
-Install that file with `sudo pacman -U /tmp/…/lapac71g-lapac71h-keyboard-gnome-0.1.0-1-any.pkg.tar.zst`.
+Install that file with `sudo pacman -U /tmp/…/lapac71g-lapac71h-keyboard-gnome-0.1.0-2-any.pkg.tar.zst`.
 The package contains the system-wide extension, a system D-Bus activation file,
 the service unit, a bus policy and a polkit action. It does not enable a boot daemon.
 The bridge starts on the first UI request and does not write anything on startup.
