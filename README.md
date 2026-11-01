@@ -151,6 +151,36 @@ This interface does not require `manual_control=1`. For bounded tests with
 restoration and physical-observation prompts, see the
 [hardware procedure](memory-bank/testing.md).
 
+### GNOME Quick Settings
+
+The standard `kbd_backlight` LED interface already supports GNOME's keyboard
+brightness control through UPower and GNOME Settings Daemon. No TUXEDO driver
+or Shell extension is needed for brightness. To choose RGB colors graphically,
+the optional [LAPAC71G/LAPAC71H Keyboard Color extension for GNOME 51](contrib/gnome/README.md)
+provides presets in Quick Settings and a GTK4/libadwaita color picker with HEX
+input. Its separate Arch package contains a fixed-path D-Bus bridge and
+polkit policy; it uses this driver's existing multicolor LED API.
+
+If the module was enabled or replaced during an existing GNOME session, GNOME
+may retain an unavailable brightness value even though UPower sees the LED.
+On systems providing the GNOME systemd user target, refresh it with:
+
+```sh
+systemctl --user restart org.gnome.SettingsDaemon.Power.target
+```
+
+Alternatively, log out and back in. The `.service` unit can refuse a direct
+manual restart; use the `.target` shown above. To check GNOME's detection:
+
+```sh
+busctl --user get-property org.gnome.SettingsDaemon.Power \
+  /org/gnome/SettingsDaemon/Power \
+  org.gnome.SettingsDaemon.Power.Keyboard Brightness
+```
+
+A value from 0 to 100 makes the control available; -1 means unavailable.
+The existing LED ABI remains 0..255, rounded to four hardware levels.
+
 ## Fan speeds
 After loading the module the fan speeds and temperatures should immediately appear in the output of `sensors`, and all your favourite monitoring utilities (e.g. the [Freon][gnome-ext-freon] GNOME shell extension) that use `sensors`.
 

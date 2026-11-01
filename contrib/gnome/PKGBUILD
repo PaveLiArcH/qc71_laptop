@@ -1,0 +1,23 @@
+# Local snapshot template, filled by build-package.py. Not an AUR Git recipe.
+pkgname=lapac71g-lapac71h-keyboard-gnome
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='GNOME Quick Settings keyboard RGB control for Intel NUC X15 LAPAC71G/LAPAC71H'
+arch=('any')
+url='https://github.com/PaveLiArcH/qc71_laptop'
+license=('GPL-2.0-only')
+depends=('python-gobject' 'gtk4>=4.10' 'libadwaita>=1.5' 'polkit'
+         'gnome-shell>=1:51')
+optdepends=('qc71-laptop-lapac71-dkms-git: LAPAC71G/H keyboard LED driver')
+provides=('qc71-keyboard-gnome')
+conflicts=('qc71-keyboard-gnome' 'lapac71g-lapac71h-keyboard-gnome-git')
+options=('!debug')
+source=("${pkgname}-${pkgver}.tar.gz")
+sha256sums=('@SOURCE_SHA256@')
+
+package() {
+    cd "${srcdir}/${pkgname}-${pkgver}"
+    make install DESTDIR="${pkgdir}"
+    install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+    install -Dm644 README.md "${pkgdir}/usr/share/doc/${pkgname}/README.md"
+}

@@ -1,0 +1,21 @@
+[Unit]
+Description=qc71 keyboard RGB D-Bus bridge
+
+[Service]
+Type=dbus
+BusName=io.github.PaveLiArcH.Qc71Keyboard1
+ExecStart=/usr/bin/python3 -I /usr/lib/qc71-keyboard/service.py
+User=root
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ReadWritePaths=-/sys/devices/platform/qc71_laptop/leds/qc71_laptop:rgb:kbd_backlight/multi_intensity
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictAddressFamilies=AF_UNIX
+CapabilityBoundingSet=
+UMask=0077

@@ -8,6 +8,8 @@ python3 tests/test_fan.py
 python3 tests/test_ec_and_led.py
 python3 tests/test_hardware_helper.py
 python3 tests/test_power_observer.py
+python3 tests/test_gnome_keyboard.py
+dbus-run-session -- python3 tests/test_gnome_dbus.py
 ```
 
 The fan and EC/LED scripts compile real driver code with fake kernel and EC interfaces. They
@@ -38,6 +40,14 @@ tests cover both exact board names, rejected lookalikes, ACADL357 revision
 0060, missing/invalid BIOS and capability data, OEM string guards, and the
 unchanged original QC71 revision 0114 threshold. These are software checks;
 physical testing of this fork has been performed on LAPAC71G only.
+
+The optional GNOME bridge has 19 backend/authorization/dispatch tests and two
+private D-Bus integration tests. They use temporary LED/power-supply files and
+mock polkit, covering denied writes, channel order, source switching, no replay
+or cross-profile restoration, bounded readback, black rejection and preservation
+of brightness. The integration suite needs PyGObject, `gdbus` and a private
+message bus; run it with `dbus-run-session` as shown above. It does not contact
+the real system bus or write physical hardware.
 
 The new `keyboard-led` checks model the Intel callback and asynchronous writes:
 bright RED, DIMMER RED, OFF, and restoration of configured color/brightness.

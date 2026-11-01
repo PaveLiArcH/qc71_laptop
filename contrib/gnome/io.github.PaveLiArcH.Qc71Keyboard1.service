@@ -1,0 +1,5 @@
+[D-BUS Service]
+Name=io.github.PaveLiArcH.Qc71Keyboard1
+Exec=/usr/bin/python3 -I /usr/lib/qc71-keyboard/service.py
+User=root
+SystemdService=qc71-keyboard.service

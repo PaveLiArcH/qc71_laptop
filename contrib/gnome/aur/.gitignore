@@ -1,0 +1,7 @@
+!.SRCINFO
+/src/
+/pkg/
+/qc71_laptop/
+/*.pkg.tar.*
+/*.src.tar.*
+/*.log
