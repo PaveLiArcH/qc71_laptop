@@ -44,7 +44,7 @@ MODULE_PARM_DESC(keyboard_backlight_protocol, "keyboard backlight protocol (read
 static bool keyboard_backlight;
 module_param(keyboard_backlight, bool, 0444);
 MODULE_PARM_DESC(keyboard_backlight,
-	"enable experimental LAPAC71G single-zone RGB keyboard LED (default=false)");
+	"enable experimental LAPAC71G/H single-zone RGB keyboard LED (default=false)");
 
 struct keyboard_profile {
 	bool ac;
@@ -367,7 +367,7 @@ int __init qc71_led_keyboard_setup(void)
 
 	if (!keyboard_backlight)
 		return -ENODEV;
-	if (!qc71_features.keyboard_backlight || !dmi_match(DMI_BOARD_NAME, "LAPAC71G"))
+	if (!qc71_features.keyboard_backlight || !qc71_is_lapac71())
 		return -ENODEV;
 	err = keyboard_active_power(&ac);
 	if (err)

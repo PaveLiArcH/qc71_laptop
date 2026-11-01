@@ -201,5 +201,11 @@ class PowerObserverTests(unittest.TestCase):
         self.assertEqual(self.brightness_reads, [])
 
 
+class Lapac71HPowerObserverTests(PowerObserverTests):
+    def setUp(self):
+        super().setUp()
+        self.store(hw.DMI_BOARD, 'LAPAC71H')
+
+
 if __name__ == '__main__':
     unittest.main()

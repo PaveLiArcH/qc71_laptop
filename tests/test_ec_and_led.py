@@ -141,6 +141,7 @@ static void power_supply_unreg_notifier(struct notifier_block *notifier) {
 }
 #define DMI_BOARD_NAME 1
 static const char *mock_board = "LAPAC71G";
+static const char *test_board = "LAPAC71G";
 static bool dmi_match(int field, const char *value) { (void)field; return strcmp(mock_board,value) == 0; }
 enum led_brightness { LED_OFF = 0, LED_FULL = 255 };
 #define LED_COLOR_ID_RED 1
@@ -169,7 +170,6 @@ static struct led_classdev_mc *lcdev_to_mccdev(struct led_classdev *led) {
 struct device { int unused; };
 static struct { struct device dev; } platform;
 static typeof(platform) *qc71_platform_dev = &platform;
-static struct { bool keyboard_backlight; } qc71_features;
 static unsigned int registrations, unregistrations;
 static int registration_error;
 static struct led_classdev *mock_led;
@@ -285,7 +285,7 @@ static void reset(void) {
     notifier_error = 0;
     sleeps = trace_count = switch_on_transaction = 0;
     fail_after_write = trace_enabled = dirty_rgb = false;
-    mock_board = "LAPAC71G";
+    mock_board = test_board;
     adapter_present = true;
     adapter_error = 0;
     assert(adapter_refs == 0);
@@ -369,9 +369,12 @@ static void test_led(void) {
     qc71_features.keyboard_backlight = false;
     assert(qc71_led_keyboard_setup() == -ENODEV && transactions == 0);
     qc71_features.keyboard_backlight = true;
-    mock_board = "LAPAC71G-other";
-    assert(qc71_led_keyboard_setup() == -ENODEV && transactions == 0);
-    mock_board = "LAPAC71G";
+    const char *other_boards[] = { "LAPAC71G-other", "LAPAC71H-other", "LAPAC71", "LAPAC71X" };
+    for (size_t i = 0; i < ARRAY_SIZE(other_boards); i++) {
+        mock_board = other_boards[i];
+        assert(qc71_led_keyboard_setup() == -ENODEV && transactions == 0);
+    }
+    mock_board = test_board;
     adapter_present = false;
     assert(qc71_led_keyboard_setup() == -ENODEV && transactions == 0 && adapter_refs == 0);
     adapter_present = true;
@@ -529,6 +532,8 @@ static void test_led(void) {
 int main(void) {
     test_ec();
     test_led();
+    test_board = "LAPAC71H";
+    test_led();
     puts("PASS: EC validation/RMW; Intel AC/DC profiles, flags/apply/delay, RGB/black, source refresh and error rollback, no probe/unload writes");
     return 0;
 }
@@ -538,7 +543,9 @@ with TemporaryDirectory(prefix="qc71-ec-led-tests-") as directory:
     source = Path(directory) / "test_ec_and_led.c"
     binary = Path(directory) / "test_ec_and_led"
     source.write_text(
-        STUBS + without_includes(ROOT / "ec.h")
+        STUBS + without_includes(ROOT / "features.h")
+        + '\nstruct qc71_features_struct qc71_features;\n'
+        + without_includes(ROOT / "ec.h")
         + without_includes(ROOT / "ec.c") + MAILBOX
         + without_includes(ROOT / "led_keyboard.h")
         + without_includes(ROOT / "led_keyboard.c") + TESTS

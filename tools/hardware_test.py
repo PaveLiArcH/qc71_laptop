@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bounded LAPAC71G checks; snapshot and keyboard-observe only read hardware.
+"""Bounded LAPAC71G/H checks; snapshot and keyboard-observe only read hardware.
 
 keyboard-observe asks for one physical Fn+F7 press; no command reloads modules.
 """
@@ -26,6 +26,7 @@ KEYBOARD_CTRL_MASK = 0xf2
 KEYBOARD_CTRL_STABLE_MASK = KEYBOARD_CTRL_MASK & ~0x10
 KEYBOARD_IMMEDIATE_ADDRS = (0x1801, 0x1802, 0x1803, 0x1805, 0x1808)
 INTEL_AC_CONTROL = 'ADDR_INTELAC_AC_SINGLEBL_ENABLE'
+LAPAC71_BOARDS = ('LAPAC71G', 'LAPAC71H')
 
 
 def read(path):
@@ -68,8 +69,8 @@ def snapshot():
 
 
 def require_device():
-    if read(DMI_BOARD) != 'LAPAC71G':
-        raise RuntimeError('Write tests are restricted to LAPAC71G')
+    if read(DMI_BOARD) not in LAPAC71_BOARDS:
+        raise RuntimeError('Write tests are restricted to LAPAC71G/H')
     if os.geteuid() != 0:
         raise RuntimeError('Run write tests with sudo in your own terminal')
     if not (PARAMS / 'fan_control').exists():
@@ -152,8 +153,8 @@ def keyboard_observe_readings():
 
 def keyboard_observe(prompt=True):
     """Observe one native hotkey transition without any software writes."""
-    if read(DMI_BOARD) != 'LAPAC71G':
-        raise RuntimeError('Native keyboard observation is restricted to LAPAC71G')
+    if read(DMI_BOARD) not in LAPAC71_BOARDS:
+        raise RuntimeError('Native keyboard observation is restricted to LAPAC71G/H')
     before = keyboard_observe_readings()
     print('Keyboard before Fn+F7:', json.dumps(before, ensure_ascii=False), flush=True)
     rgb = [int(before[name], 0) for name in KEYBOARD_RGB_REGS]

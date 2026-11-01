@@ -215,11 +215,20 @@ int main(void) {
  reset();
  assert(qc71_hwmon_pwm_setup()==-ENODEV);
  fan_control=true;
- mock_board="LAPAC71G";
- assert(qc71_hwmon_pwm_setup()==0 && reads==0 && writes==0);
- qc71_hwmon_pwm_cleanup();
- mock_board="LAPAC71G-other";
- assert(qc71_hwmon_pwm_setup()==-ENODEV);
+ const char *boards[] = { "LAPAC71G", "LAPAC71H" };
+ for (size_t i=0; i<ARRAY_SIZE(boards); i++) {
+  mock_board=boards[i];
+  fan_control=false;
+  assert(qc71_hwmon_pwm_setup()==-ENODEV && reads==0 && writes==0);
+  fan_control=true;
+  assert(qc71_hwmon_pwm_setup()==0 && reads==0 && writes==0);
+  qc71_hwmon_pwm_cleanup();
+ }
+ const char *other_boards[] = { "LAPAC71G-other", "LAPAC71H-other", "LAPAC71", "LAPAC71X" };
+ for (size_t i=0; i<ARRAY_SIZE(other_boards); i++) {
+  mock_board=other_boards[i];
+  assert(qc71_hwmon_pwm_setup()==-ENODEV);
+ }
  mock_board="LAPQC71A";
  assert(qc71_hwmon_pwm_setup()==-ENODEV);
  fan_control=false; qc71_features.fan_boost=true;

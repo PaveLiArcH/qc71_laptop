@@ -107,8 +107,8 @@ def observe_stage(ac, saved):
 
 def observe_power():
     try:
-        if hw.read(hw.DMI_BOARD) != 'LAPAC71G':
-            raise RuntimeError('Observation is restricted to LAPAC71G')
+        if hw.read(hw.DMI_BOARD) not in hw.LAPAC71_BOARDS:
+            raise RuntimeError('Observation is restricted to LAPAC71G/H')
         if hw.read(hw.PARAMS / 'keyboard_backlight_protocol') != 'intel-ac-dc-v1':
             raise RuntimeError('Observation requires intel-ac-dc-v1')
         if hw.read(hw.LED / 'multi_index').split() != ['red', 'green', 'blue']:

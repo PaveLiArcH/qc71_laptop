@@ -3,6 +3,7 @@
 Run from the repository root:
 
 ```sh
+python3 tests/test_features.py
 python3 tests/test_fan.py
 python3 tests/test_ec_and_led.py
 python3 tests/test_hardware_helper.py
@@ -30,7 +31,13 @@ and follow the hardware test instructions in the memory bank.
 `test_hardware_helper.py` runs Python unittest cases against temporary files:
 restoration after failures, physical-observation prompts, and test preconditions.
 It never accesses actual device files.
-The current helper and power-observer suites contain 80 and 12 cases respectively.
+The helper and power-observer suites run their 80 and 12 cases respectively
+for both LAPAC71G and LAPAC71H (160 and 24 cases in total). The EC/LED suite
+also runs its complete keyboard checks for both boards. DMI/BIOS detection
+tests cover both exact board names, rejected lookalikes, ACADL357 revision
+0060, missing/invalid BIOS and capability data, OEM string guards, and the
+unchanged original QC71 revision 0114 threshold. These are software checks;
+physical testing of this fork has been performed on LAPAC71G only.
 
 The new `keyboard-led` checks model the Intel callback and asynchronous writes:
 bright RED, DIMMER RED, OFF, and restoration of configured color/brightness.

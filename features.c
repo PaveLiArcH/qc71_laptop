@@ -41,6 +41,12 @@ static const struct dmi_system_id qc71_dmi_table[] __initconst = {
 			{ }
 		}
 	},
+	{
+		.matches = {
+			DMI_EXACT_MATCH(DMI_BOARD_NAME, "LAPAC71H"),
+			{ }
+		}
+	},
 	{ }
 };
 
@@ -141,7 +147,7 @@ static int __init check_features_ec(void)
 		pr_info("support_2: %#04x\n", support_2);
 		/* The RGB register layout is currently supported on the X15 only. */
 		qc71_features.keyboard_backlight =
-			dmi_match(DMI_BOARD_NAME, "LAPAC71G") &&
+			qc71_is_lapac71() &&
 			(support_2 & SUPPORT_2_SINGLE_ZONE_KBD);
 	} else {
 		pr_warn("failed to query support_2 byte: %d\n", support_2);
@@ -154,7 +160,7 @@ static int __init check_features_bios(void)
 {
 	const char *bios_version_str;
 	int bios_version;
-	bool x15 = dmi_match(DMI_BOARD_NAME, "LAPAC71G");
+	bool x15 = qc71_is_lapac71();
 
 	if (!dmi_check_system(qc71_dmi_table)) {
 		pr_warn("no DMI match\n");

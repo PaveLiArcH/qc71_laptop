@@ -24,7 +24,7 @@ static struct device *qc71_hwmon_pwm_dev;
 static bool fan_control;
 module_param(fan_control, bool, 0444);
 MODULE_PARM_DESC(fan_control,
-	"expose experimental LAPAC71G PWM controls even without EC capability bit (default=false)");
+	"expose experimental LAPAC71G/H PWM controls even without EC capability bit (default=false)");
 
 /* ========================================================================== */
 
@@ -123,7 +123,7 @@ static const struct hwmon_chip_info qc71_hwmon_pwm_chip_info = {
 int __init qc71_hwmon_pwm_setup(void)
 {
 	if (!qc71_features.fan_boost &&
-	    !(fan_control && dmi_match(DMI_BOARD_NAME, "LAPAC71G")))
+	    !(fan_control && qc71_is_lapac71()))
 		return -ENODEV;
 
 	qc71_hwmon_pwm_dev = hwmon_device_register_with_info(

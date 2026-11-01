@@ -4,16 +4,19 @@ This a Linux kernel platform driver for Intel Whitebook LAPQC71X systems (XMG Fu
 Development notes, device evidence, and testing instructions are kept in the
 [memory bank](memory-bank/README.md).
 
-This checkout also recognizes the Maibenben P527 / Intel NUC X15 **LAPAC71G**
-with ACADL357 BIOS 0060 or newer for battery charge limits. Keyboard RGB and
+This fork also recognizes the Intel NUC X15 **LAPAC71G** (including the
+Maibenben P527) and **LAPAC71H** with ACADL357 BIOS 0060 or newer for battery
+charge limits. Both models use the same EC register layout. Keyboard RGB and
 legacy fan PWM support are experimental and require explicit module options;
 see the [hardware test procedure](memory-bank/testing.md). Battery threshold
 changes, AC/DC keyboard RGB/brightness/off, automatic switching between the
 keyboard profiles, both fan speeds at 100% and 90%, and returning fan control
 to BIOS have been physically confirmed on this device. Short s2idle cycles on
-AC preserved the settings in BIOS mode and released direct fan PWM without
+AC on LAPAC71G preserved the settings in BIOS mode and released direct fan PWM without
 replaying it after resume. Deep sleep and long manual sessions still need
-validation. The original QC71 BIOS threshold remains 0114.
+validation. LAPAC71H uses the same implementation and software tests; physical
+testing of this fork has so far been performed on LAPAC71G only.
+The original QC71 BIOS threshold remains 0114.
 
 
 # Disclaimer
@@ -28,6 +31,9 @@ Some functions have been confirmed to work on the Tongfang GK7C chassis (XMG Neo
 This checkout has also been tested on the Maibenben P527 / LAPAC71G with
 ACADL357 BIOS 0060 and Linux 7.2.9-arch1-1; the confirmed functions and remaining
 checks are listed above and in the memory bank.
+LAPAC71H is also recognized, using the same ACADL357 BIOS gate and Intel
+AC/DC keyboard and fan protocols. Its hardware behavior has not been tested
+with this fork.
 
 
 # Dependencies
@@ -49,6 +55,11 @@ checks are listed above and in the memory bank.
 
 
 # How to install
+For Arch Linux, the AUR recipe for the LAPAC71G/H-capable fork is
+[`qc71-laptop-lapac71-dkms-git`](contrib/arch/aur/PKGBUILD).
+See the [Arch packaging instructions](contrib/arch/README.md) for building it
+from the published Git sources and replacing the upstream DKMS package.
+
 For the current Maibenben P527 Arch installation, use the
 [local package and rollback procedure](memory-bank/install.md). Its hardware
 checks have passed; the prepared package replaces the existing DKMS package.
@@ -113,7 +124,7 @@ sudo make dkmsinstall
 
 
 # How to use
-## LAPAC71G keyboard backlight
+## LAPAC71G/H keyboard backlight
 
 Load this checkout with `keyboard_backlight=1`; the LED also needs
 `CONFIG_LEDS_CLASS_MULTICOLOR` and `CONFIG_POWER_SUPPLY`. The interface is
@@ -194,7 +205,7 @@ will change the current color.
 ## Controlling the fans
 These can be controlled directly from the BIOS as well.
 
-### Direct PWM on LAPAC71G
+### Direct PWM on LAPAC71G/H
 
 `fan_control=1` explicitly enables experimental PWM support on this board.
 Locate the hwmon directory whose `name` is `qc71_laptop.hwmon.pwm` under

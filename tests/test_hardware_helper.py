@@ -1366,5 +1366,11 @@ class HardwareHelperTests(unittest.TestCase):
         self.assertEqual(helper.read(helper.PLATFORM / "manual_control"), "0")
 
 
+class Lapac71HHardwareHelperTests(HardwareHelperTests):
+    def setUp(self):
+        super().setUp()
+        self.board_name.write_text('LAPAC71H')
+
+
 if __name__ == "__main__":
     unittest.main()
